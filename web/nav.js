@@ -61,8 +61,15 @@ async function startAudio() {
 }
 
 function startWorker() {
-  const fresh = new URLSearchParams(location.search).has('fresh') ? '?fresh=1' : '';
-  worker = new Worker('./depth-worker.js' + fresh, { type: 'module' });
+  // forward the dev/A-B flags to the worker: ?fresh=1 (bypass model cache) and
+  // ?size=322 (load the 322 model variant instead of the default 518)
+  const sp = new URLSearchParams(location.search);
+  const q = new URLSearchParams();
+  if (sp.has('fresh')) q.set('fresh', '1');
+  const sizeP = sp.get('size'); if (sizeP && /^\d+$/.test(sizeP)) q.set('size', sizeP);
+  const be = sp.get('backend'); if (be === 'wasm' || be === 'webgpu') q.set('backend', be);
+  const qs = q.toString() ? '?' + q.toString() : '';
+  worker = new Worker('./depth-worker.js' + qs, { type: 'module' });
   worker.onmessage = (e) => {
     const m = e.data;
     if (m.type === 'progress') setStatus(`loading model… ${m.pct}%`);
@@ -76,7 +83,7 @@ function startWorker() {
       busy = false;
       const now = performance.now(); if (lastT) fps = 0.85 * fps + 0.15 * (1000 / Math.max(1, now - lastT)); lastT = now;
       const open = dists.map((d, i) => [d, i]).reduce((a, b) => (b[0] > a[0] ? b : a))[1];
-      setStatus(`${backend.toUpperCase()} · ${fps.toFixed(1)} fps · ${PARAMS.mode} · open ${open + 1}/7 · far ${PARAMS.far_m.toFixed(1)}m`);
+      setStatus(`${backend.toUpperCase()} · ${fps.toFixed(1)} fps · ${m.res || ''} · ${PARAMS.mode} · open ${open + 1}/7`);
       if (running) requestAnimationFrame(loop);
     }
   };
@@ -90,7 +97,7 @@ function loop() {
   c.drawImage(video, 0, 0, cap.width, cap.height);
   const img = c.getImageData(0, 0, cap.width, cap.height);
   busy = true;
-  worker.postMessage({ type: 'infer', buf: img.data.buffer, width: cap.width, height: cap.height }, [img.data.buffer]);
+  worker.postMessage({ type: 'infer', buf: img.data.buffer, width: cap.width, height: cap.height, near: PARAMS.near_m, far: PARAMS.far_m }, [img.data.buffer]);
 }
 
 // colorized metric-depth view (the "thermo" map, like live.py)
