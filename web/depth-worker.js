@@ -17,7 +17,7 @@ const MODEL = 'onnx-community/depth-anything-v2-small';
 const SP = new URLSearchParams(self.location.search);
 const FORCE = SP.get('backend') || undefined;
 let SIZE = parseInt(SP.get('size'), 10);
-if (!Number.isFinite(SIZE) || SIZE % 14 !== 0) SIZE = 252;    // default coarse/fast size (18*14)
+if (!Number.isFinite(SIZE) || SIZE % 14 !== 0) SIZE = 126;    // default coarse/fast size (9*14)
 
 let estimator = null, backend = '';
 
