@@ -1,0 +1,8 @@
+torch>=2.4
+transformers>=4.44
+opencv-python>=4.10
+sounddevice>=0.5
+scipy>=1.14
+numpy>=2.0
+pillow>=10.0
+matplotlib>=3.8
