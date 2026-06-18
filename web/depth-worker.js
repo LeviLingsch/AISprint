@@ -78,7 +78,9 @@ self.onmessage = async (e) => {
       const pd = out.predicted_depth, dims = pd.dims;
       const H = dims.length === 3 ? dims[1] : dims[0];
       const W = dims.length === 3 ? dims[2] : dims[1];
-      const dist = sectorDistances(pd.data, H, W, m.near, m.far);
+      const near = (typeof m.near === 'number') ? m.near : 0.5;   // guard: don't NaN if nav.js is stale
+      const far = (typeof m.far === 'number') ? m.far : 3.0;
+      const dist = sectorDistances(pd.data, H, W, near, far);
       const th = depthThumb(pd.data, H, W);
       self.postMessage({ type: 'dist', dist: Array.from(dist), depth: th.rgba.buffer, dw: th.DW, dh: th.DH, backend: be, res: `${W}x${H}` }, [th.rgba.buffer]);
     }
