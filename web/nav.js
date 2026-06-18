@@ -67,7 +67,11 @@ function startWorker() {
   const q = new URLSearchParams();
   if (sp.has('fresh')) q.set('fresh', '1');
   const sizeP = sp.get('size'); if (sizeP && /^\d+$/.test(sizeP)) q.set('size', sizeP);
-  const be = sp.get('backend'); if (be === 'wasm' || be === 'webgpu') q.set('backend', be);
+  // WebGPU is desktop-reliable; phone/iPad -> multi-threaded WASM. (iPad reports a Mac UA, so also check touch.)
+  const ua = navigator.userAgent || '';
+  const mobileLike = /Android|iPhone|iPod|Mobile/i.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua));
+  const be = sp.get('backend') || (mobileLike ? 'wasm' : '');
+  if (be === 'wasm' || be === 'webgpu') q.set('backend', be);
   const qs = q.toString() ? '?' + q.toString() : '';
   worker = new Worker('./depth-worker.js' + qs, { type: 'module' });
   worker.onmessage = (e) => {
