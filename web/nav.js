@@ -2,7 +2,7 @@
 // -> 7 sector distances -> AudioWorklet synth (same cue mapping). Double-tap adds
 // the Claude scene-discussion layer (claude-discuss.js).
 
-import { createDiscussion } from './claude-discuss.js';
+import { createDiscussion } from './claude-discuss.js?v=3';
 
 const CAP_W = 322;                 // px fed to the depth model (matches desktop size)
 const N = 7;
@@ -53,12 +53,16 @@ function setupZoom() {
 
 async function startAudio() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
-  await ctx.audioWorklet.addModule('./synth-worklet.js');
+  await ctx.audioWorklet.addModule('./synth-worklet.js?v=3');
   node = new AudioWorkletNode(ctx, 'echo-synth', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
   node.connect(ctx.destination);
   node.port.postMessage({ params: PARAMS });
   if (ctx.state === 'suspended') await ctx.resume();
+  // iOS unlock: a brief silent blip inside the Start gesture so Web Audio actually starts
+  try { const o = ctx.createOscillator(), g = ctx.createGain(); g.gain.value = 0.0001; o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.05); } catch {}
 }
+// keep resuming on any tap (iOS suspends aggressively)
+addEventListener('pointerdown', () => { if (ctx && ctx.state === 'suspended') ctx.resume(); }, { passive: true });
 
 function startWorker() {
   // forward the dev/A-B flags to the worker: ?fresh=1 (bypass model cache) and
@@ -67,11 +71,9 @@ function startWorker() {
   const q = new URLSearchParams();
   if (sp.has('fresh')) q.set('fresh', '1');
   const sizeP = sp.get('size'); if (sizeP && /^\d+$/.test(sizeP)) q.set('size', sizeP);
-  // WebGPU is desktop-reliable; phone/iPad -> multi-threaded WASM. (iPad reports a Mac UA, so also check touch.)
-  const ua = navigator.userAgent || '';
-  const mobileLike = /Android|iPhone|iPod|Mobile/i.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua));
-  const be = sp.get('backend') || (mobileLike ? 'wasm' : '');
+  const be = sp.get('backend') || 'webgpu';   // FORCE WebGPU everywhere (override with ?backend=wasm)
   if (be === 'wasm' || be === 'webgpu') q.set('backend', be);
+  q.set('v', '3');
   const qs = q.toString() ? '?' + q.toString() : '';
   worker = new Worker('./depth-worker.js' + qs, { type: 'module' });
   worker.onmessage = (e) => {

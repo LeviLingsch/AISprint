@@ -15,7 +15,7 @@ try { env.backends.onnx.wasm.numThreads = Math.min(8, (self.navigator && self.na
 
 const MODEL = 'onnx-community/depth-anything-v2-small';
 const SP = new URLSearchParams(self.location.search);
-const FORCE = SP.get('backend') || undefined;
+const FORCE = SP.get('backend') || undefined; // default: try WebGPU first (override with ?backend=wasm)
 const sizeArg = parseInt(SP.get('size'), 10);
 const SIZE = (Number.isFinite(sizeArg) && sizeArg % 14 === 0) ? sizeArg : null; // null = model's native size (reliable). ?size=126 to experiment.
 
@@ -26,7 +26,7 @@ async function load() {
   const prog = (p) => { if (p.status === 'progress' && p.file) self.postMessage({ type: 'progress', file: p.file, pct: Math.round(p.progress || 0) }); };
   if (FORCE !== 'wasm') {
     try { estimator = await pipeline('depth-estimation', MODEL, { device: 'webgpu', dtype: 'fp16', progress_callback: prog }); backend = 'webgpu'; if (SIZE) setSize(estimator, SIZE); return backend; }
-    catch (e) { self.postMessage({ type: 'info', message: 'WebGPU unavailable -> WASM' }); }
+    catch (e) { self.postMessage({ type: 'info', message: 'WebGPU init failed: ' + ((e && e.message) || e) }); if (FORCE === 'webgpu') throw e; } // forced webgpu: NO wasm fallback
   }
   estimator = await pipeline('depth-estimation', MODEL, { device: 'wasm', dtype: 'q8', progress_callback: prog });
   backend = 'wasm'; if (SIZE) setSize(estimator, SIZE); return backend;
