@@ -16,8 +16,8 @@ try { env.backends.onnx.wasm.numThreads = Math.min(8, (self.navigator && self.na
 const MODEL = 'onnx-community/depth-anything-v2-small';
 const SP = new URLSearchParams(self.location.search);
 const FORCE = SP.get('backend') || undefined;
-let SIZE = parseInt(SP.get('size'), 10);
-if (!Number.isFinite(SIZE) || SIZE % 14 !== 0) SIZE = 126;    // default coarse/fast size (9*14)
+const sizeArg = parseInt(SP.get('size'), 10);
+const SIZE = (Number.isFinite(sizeArg) && sizeArg % 14 === 0) ? sizeArg : null; // null = model's native size (reliable). ?size=126 to experiment.
 
 let estimator = null, backend = '';
 
@@ -25,11 +25,11 @@ async function load() {
   if (estimator) return backend;
   const prog = (p) => { if (p.status === 'progress' && p.file) self.postMessage({ type: 'progress', file: p.file, pct: Math.round(p.progress || 0) }); };
   if (FORCE !== 'wasm') {
-    try { estimator = await pipeline('depth-estimation', MODEL, { device: 'webgpu', dtype: 'fp16', progress_callback: prog }); backend = 'webgpu'; setSize(estimator, SIZE); return backend; }
+    try { estimator = await pipeline('depth-estimation', MODEL, { device: 'webgpu', dtype: 'fp16', progress_callback: prog }); backend = 'webgpu'; if (SIZE) setSize(estimator, SIZE); return backend; }
     catch (e) { self.postMessage({ type: 'info', message: 'WebGPU unavailable -> WASM' }); }
   }
   estimator = await pipeline('depth-estimation', MODEL, { device: 'wasm', dtype: 'q8', progress_callback: prog });
-  backend = 'wasm'; setSize(estimator, SIZE); return backend;
+  backend = 'wasm'; if (SIZE) setSize(estimator, SIZE); return backend;
 }
 
 // best-effort: shrink the model input on this dynamic model (the speed lever)
