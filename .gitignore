@@ -1,0 +1,6 @@
+secret/anthropic_key.txt
+certs/
+__pycache__/
+*.pyc
+.DS_Store
+*.key            # local-only Keynote/demo decks (e.g. Demo.key, 574 MB)

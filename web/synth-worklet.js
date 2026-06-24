@@ -7,13 +7,29 @@
 // Three modes: continuous / pulse / sweep. Phase-continuous so params can change
 // every frame without clicks. Runs on the audio thread; depth feeds it via messages.
 
-const HARMONICS = [1.0, 0.5, 0.3, 0.18];        // soft saw-ish -> localizes better
-const HN = HARMONICS.reduce((a, b) => a + b, 0); // 1.98
+// Each voice is a rich, slightly-detuned organ/pad tone (NOT a single sine):
+// [freq-ratio, amplitude] — a fifth + octaves give chordal body, and the ~0.5%
+// detunes add a warm chorus/shimmer. Makes every sector "bar" a fuller instrument note.
+// Warm harmonic voice — NO inharmonic fifth (that 1.5x partial was the buzz). Harmonics
+// above the fundamental are scaled per-voice by "brightness": LOW notes (the sides) stay
+// nearly pure and smooth, higher notes (toward center) pick up a little more life.
+const PARTIALS = [
+  [1.0, 1.00],   // fundamental
+  [2.0, 0.40],   // octave (warmth/body)
+  [3.0, 0.14],   // octave + fifth
+  [4.0, 0.06],   // two octaves (faint sparkle, mostly on the high notes)
+];
+const PN = PARTIALS.reduce((s, p) => s + p[1], 0);
+const brightOf = (f) => Math.min(1, Math.max(0.15, (f - 200) / 600));  // low freq -> fewer harmonics
+// Per-sector pitch snaps to a consonant chord (semitones above the root, edge -> center):
+// root, fifth, octave, octave+major-third -> overlapping sectors form a major chord.
+// Other pleasant options: [0,7,12,19] open fifths · [0,3,7,12] minor · [0,5,7,12] sus4.
+const CHORD = [0, 7, 12, 16];
 
-function timbre(phase) {
-  let out = 0;
-  for (let k = 0; k < HARMONICS.length; k++) out += HARMONICS[k] * Math.sin((k + 1) * phase);
-  return out / HN;
+function timbre(phase, bright) {
+  let out = Math.sin(phase);                                    // fundamental, full
+  for (let i = 1; i < PARTIALS.length; i++) out += bright * PARTIALS[i][1] * Math.sin(PARTIALS[i][0] * phase);
+  return out / PN;
 }
 const clip01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -38,7 +54,7 @@ class EchoSynth extends AudioWorkletProcessor {
     this.falloff = 2.0;
     this.rate_min = 1.6; this.rate_max = 11.0;
     this.sweep_period = 0.3;
-    this.smooth_hz = 6.0;
+    this.smooth_hz = 3.0;   // gentler -> volume doesn't jitter with noisy live depth
     this.master = 0.8;
     this.mode = 'continuous';
 
@@ -72,15 +88,23 @@ class EchoSynth extends AudioWorkletProcessor {
     this.gL = new Float64Array(N);
     this.gR = new Float64Array(N);
     this.freq = new Float64Array(N);
-    let amax = 0;
-    for (let i = 0; i < N; i++) { this.az[i] = (i + 0.5) / N * 2 - 1; amax = Math.max(amax, Math.abs(this.az[i])); }
-    amax = amax || 1.0;
+    this.bright = new Float64Array(N);
+    // span the FULL stereo width: leftmost column -> -1 (hard left), rightmost -> +1
+    for (let i = 0; i < N; i++) this.az[i] = N > 1 ? (i / (N - 1)) * 2 - 1 : 0;
+    // distinct |az| levels (center smallest .. edge largest); map each to a chord tone
+    const absA = Array.from(this.az, (a) => Math.abs(a));
+    const levels = Array.from(new Set(absA.map((v) => v.toFixed(4)))).map(Number).sort((a, b) => a - b);
+    const L = levels.length;
+    const root = this.side_hz;                          // sides/edges = chord root (low)
     for (let i = 0; i < N; i++) {
       const theta = (this.az[i] + 1) / 2 * (Math.PI / 2);
       this.gL[i] = Math.cos(theta); this.gR[i] = Math.sin(theta);
-      const t = Math.abs(this.az[i]) / amax;            // 0 center .. 1 edge
-      this.freq[i] = this.center_hz * Math.pow(this.side_hz / this.center_hz, t);
+      const lvl = levels.indexOf(Number(absA[i].toFixed(4)));         // 0 = center, L-1 = edge
+      const ci = L > 1 ? Math.round((L - 1 - lvl) / (L - 1) * (CHORD.length - 1)) : CHORD.length - 1;
+      this.freq[i] = root * Math.pow(2, CHORD[ci] / 12);              // edge=root .. center=top of chord
+      this.bright[i] = brightOf(this.freq[i]);
     }
+    this.center_hz = root * Math.pow(2, CHORD[CHORD.length - 1] / 12); // keep the sweep glide consistent
   }
 
   process(inputs, outputs) {
@@ -107,12 +131,12 @@ class EchoSynth extends AudioWorkletProcessor {
         const rate = this.rate_min + prox[k] * (this.rate_max - this.rate_min);
         const pinc = rate / sr;
         const duty = Math.min(0.9, Math.max(0.05, 0.085 * rate));
-        const gL = this.gL[k], gR = this.gR[k];
+        const gL = this.gL[k], gR = this.gR[k], brightK = this.bright[k];
         let ph = this.phase[k], pph = this.pulse_phase[k];
         for (let i = 0; i < n; i++) {
           const j = i + 1;
           const g = g0 + (g1 - g0) * (j / n);             // linspace last->current
-          let sig = timbre(ph + inc * j) * g;
+          let sig = timbre(ph + inc * j, brightK) * g;
           if (pulse) {
             const frac = (pph + pinc * j) % 1.0;
             const env = frac < duty ? 0.5 - 0.5 * Math.cos(2 * Math.PI * frac / duty) : 0.0;
@@ -139,7 +163,7 @@ class EchoSynth extends AudioWorkletProcessor {
         g_at *= edge;
         const freq_at = center * Math.pow(side / center, Math.abs(caz));
         cph += 2 * Math.PI * freq_at / sr;
-        const sig = timbre(cph) * g_at * 1.7;             // single source vs chord
+        const sig = timbre(cph, brightOf(freq_at)) * g_at * 1.7;   // single source vs chord
         const theta = (caz + 1) / 2 * (Math.PI / 2);
         Lout[i] += sig * Math.cos(theta);
         Rout[i] += sig * Math.sin(theta);
@@ -148,10 +172,17 @@ class EchoSynth extends AudioWorkletProcessor {
       this.sweep_cphase = cph % (2 * Math.PI);
     }
 
-    // soft limiter (tanh), then master — matches synth.py
+    // Headroom: when many sectors are loud at once their voices stack and slam the
+    // limiter — that distortion is the "rough" sound. Scale down by the total gain so
+    // a busy scene stays clean (closer is still relatively louder within the scene).
+    let norm = this.master;
+    if (this.mode === 'continuous' || this.mode === 'pulse') {
+      let gsum = 0; for (let k = 0; k < N; k++) gsum += gain[k];
+      norm = this.master / (1 + 0.4 * gsum);
+    }
     for (let i = 0; i < n; i++) {
-      Lout[i] = Math.tanh(Lout[i] * this.master);
-      Rout[i] = Math.tanh(Rout[i] * this.master);
+      Lout[i] = Math.tanh(Lout[i] * norm);
+      Rout[i] = Math.tanh(Rout[i] * norm);
     }
     return true;
   }

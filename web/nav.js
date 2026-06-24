@@ -17,8 +17,11 @@ const dthumb = document.createElement('canvas');
 const cap = document.createElement('canvas');
 
 let ctx = null, node = null, worker = null, running = false, busy = false, dists = new Array(N).fill(PARAMS.far_m), backend = '', stream = null, lastT = 0, fps = 0;
+let muted = false, claudeActive = false;
 
 const setStatus = (t) => { statusEl.textContent = t; };
+// nav audio is silent if the user muted it OR a Claude chat is active
+function applyGain() { if (node) node.port.postMessage({ params: { master: (muted || claudeActive) ? 0 : PARAMS.master } }); }
 
 async function openCamera(deviceId) {
   if (stream) stream.getTracks().forEach((t) => t.stop());
@@ -53,7 +56,7 @@ function setupZoom() {
 
 async function startAudio() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
-  await ctx.audioWorklet.addModule('./synth-worklet.js');
+  await ctx.audioWorklet.addModule('./synth-worklet.js?v=' + Date.now());  // cache-bust: reloads always get the latest sound
   node = new AudioWorkletNode(ctx, 'echo-synth', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
   node.connect(ctx.destination);
   node.port.postMessage({ params: PARAMS });
@@ -135,7 +138,7 @@ async function start() {
     // double-tap Claude layer (paste key kept in memory; swap to proxy for public)
     createDiscussion({
       video, getApiKey: () => $('key').value.trim(), model: 'claude-sonnet-4-6',
-      onActive: (a) => { if (node) node.port.postMessage({ params: { master: a ? 0.0 : PARAMS.master } }); }, // duck nav hum during Claude
+      onActive: (a) => { claudeActive = a; applyGain(); }, // mute nav audio during a Claude chat
     });
     loop();
   } catch (e) { setStatus('error: ' + e.message); startBtn.disabled = false; }
@@ -164,3 +167,14 @@ if (keyEl) {
 }
 
 function setFar(d) { PARAMS.far_m = Math.max(2.0, Math.min(15.0, PARAMS.far_m + d)); node && node.port.postMessage({ params: { far_m: PARAMS.far_m } }); }
+
+const muteBtn = $('mute');
+if (muteBtn) muteBtn.addEventListener('click', () => {
+  muted = !muted;
+  muteBtn.textContent = muted ? 'Unmute' : 'Mute';
+  muteBtn.classList.toggle('on', muted);
+  applyGain();
+});
+
+// nudge visitors to the fast path: WebGPU (desktop Chrome) ~ native speed; without it, WASM is slow
+if (!navigator.gpu) setStatus('Best on a desktop in Chrome (WebGPU). This browser will use a slower fallback — full mobile support is coming.');

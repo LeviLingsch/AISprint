@@ -1,0 +1,101 @@
+<svg viewBox="0 0 1280 460" xmlns="http://www.w3.org/2000/svg" role="img" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif">
+<title>Echolocation pipeline</title>
+<desc>Five-stage pipeline: live camera RGB frame, metric depth estimation in meters, per-sector nearest-distance analysis with floor and ceiling excluded, sonification into loudness, pan and pitch cues, and binaural audio output to headphones.</desc>
+<defs>
+<linearGradient id="depth" x1="0" y1="1" x2="0" y2="0">
+<stop offset="0" stop-color="#ef4444"/><stop offset="0.22" stop-color="#f59e0b"/><stop offset="0.45" stop-color="#eab308"/><stop offset="0.65" stop-color="#22c55e"/><stop offset="0.83" stop-color="#06b6d4"/><stop offset="1" stop-color="#3b82f6"/>
+</linearGradient>
+</defs>
+
+<rect x="8" y="8" width="1264" height="444" rx="18" fill="#ffffff" stroke="#e9eef5"/>
+<text x="40" y="42" font-size="25" font-weight="700" fill="#0f172a">Echolocation pipeline</text>
+<text x="40" y="64" font-size="14" fill="#64748b">camera image &#8594; absolute-metric depth &#8594; spatial audio</text>
+
+<!-- P1 CAPTURE -->
+<rect x="40" y="92" width="200" height="252" rx="14" fill="#fff" stroke="#e2e8f0"/>
+<path d="M40,106 Q40,92 54,92 L226,92 Q240,92 240,106 L240,130 L40,130 Z" fill="#4338ca"/>
+<circle cx="62" cy="111" r="10" fill="#fff"/><text x="62" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#4338ca">1</text>
+<text x="80" y="116" font-size="13" font-weight="600" fill="#fff" letter-spacing="0.4">CAPTURE</text>
+<rect x="112" y="150" width="56" height="104" rx="10" fill="#fff" stroke="#4338ca" stroke-width="3"/>
+<rect x="118" y="160" width="44" height="82" rx="3" fill="#eef2ff"/>
+<circle cx="140" cy="156" r="2.4" fill="#4338ca"/>
+<path d="M122,238 L140,196 L158,238" fill="none" stroke="#4338ca" stroke-width="1.5" opacity="0.55"/>
+<path d="M122,170 L140,196 L158,170" fill="none" stroke="#4338ca" stroke-width="1.5" opacity="0.3"/>
+<text x="140" y="312" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Camera</text>
+<text x="140" y="330" text-anchor="middle" font-size="11" fill="#64748b">live RGB frame</text>
+
+<!-- P2 METRIC DEPTH -->
+<rect x="288" y="92" width="200" height="252" rx="14" fill="#fff" stroke="#e2e8f0"/>
+<path d="M288,106 Q288,92 302,92 L474,92 Q488,92 488,106 L488,130 L288,130 Z" fill="#4338ca"/>
+<circle cx="310" cy="111" r="10" fill="#fff"/><text x="310" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#4338ca">2</text>
+<text x="328" y="116" font-size="12" font-weight="600" fill="#fff" letter-spacing="0.4">METRIC DEPTH</text>
+<rect x="318" y="150" width="140" height="104" rx="6" fill="url(#depth)"/>
+<path d="M324,250 L388,160 L452,250" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.55"/>
+<circle cx="388" cy="160" r="2.2" fill="#ffffff"/>
+<text x="388" y="312" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Metric depth</text>
+<text x="388" y="330" text-anchor="middle" font-size="11" fill="#64748b">Depth Anything V2 &#183; meters</text>
+
+<!-- P3 SECTORS -->
+<rect x="536" y="92" width="200" height="252" rx="14" fill="#fff" stroke="#e2e8f0"/>
+<path d="M536,106 Q536,92 550,92 L722,92 Q736,92 736,106 L736,130 L536,130 Z" fill="#4338ca"/>
+<circle cx="558" cy="111" r="10" fill="#fff"/><text x="558" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#4338ca">3</text>
+<text x="576" y="116" font-size="13" font-weight="600" fill="#fff" letter-spacing="0.4">SECTORS</text>
+<rect x="560" y="165" width="15" height="87" rx="2" fill="#ef4444"/>
+<rect x="583" y="173" width="15" height="79" rx="2" fill="#ef4444"/>
+<rect x="606" y="199" width="15" height="53" rx="2" fill="#f59e0b"/>
+<rect x="628" y="247" width="15" height="5" rx="2" fill="#22c55e"/>
+<rect x="651" y="199" width="15" height="53" rx="2" fill="#f59e0b"/>
+<rect x="674" y="173" width="15" height="79" rx="2" fill="#ef4444"/>
+<rect x="697" y="165" width="15" height="87" rx="2" fill="#ef4444"/>
+<line x1="556" y1="252" x2="716" y2="252" stroke="#cbd5e1" stroke-width="1"/>
+<text x="635" y="244" text-anchor="middle" font-size="9" font-weight="600" fill="#16a34a">open</text>
+<text x="556" y="265" font-size="10" fill="#94a3b8">L</text><text x="716" y="265" text-anchor="end" font-size="10" fill="#94a3b8">R</text>
+<text x="636" y="306" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Nearest distance</text>
+<rect x="566" y="318" width="11" height="11" rx="2" fill="#ef4444"/><text x="581" y="327" font-size="10" fill="#64748b">near</text>
+<rect x="650" y="318" width="11" height="11" rx="2" fill="#22c55e"/><text x="665" y="327" font-size="10" fill="#64748b">far</text>
+
+<!-- P4 SONIFICATION -->
+<rect x="784" y="92" width="246" height="252" rx="14" fill="#fff" stroke="#e2e8f0"/>
+<path d="M784,106 Q784,92 798,92 L1016,92 Q1030,92 1030,106 L1030,130 L784,130 Z" fill="#4338ca"/>
+<circle cx="806" cy="111" r="10" fill="#fff"/><text x="806" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#4338ca">4</text>
+<text x="824" y="116" font-size="12" font-weight="600" fill="#fff" letter-spacing="0.4">SONIFICATION</text>
+<path d="M800,162 h6 l9,-7 v22 l-9,-7 h-6 z" fill="#4338ca"/>
+<path d="M818,160 q6,7 0,14" fill="none" stroke="#4338ca" stroke-width="1.5"/>
+<path d="M822,156 q10,11 0,22" fill="none" stroke="#4338ca" stroke-width="1.5"/>
+<text x="834" y="170" font-size="13" fill="#0f172a"><tspan font-weight="700">Loudness</tspan> = closeness&#178;</text>
+<path d="M810,196 L804,202 L810,208 Z" fill="#4338ca"/><path d="M820,196 L826,202 L820,208 Z" fill="#4338ca"/>
+<text x="834" y="207" font-size="13" fill="#0f172a"><tspan font-weight="700">Pan</tspan> = direction (L / R)</text>
+<ellipse cx="806" cy="238" rx="4" ry="3" fill="#4338ca"/><line x1="810" y1="238" x2="810" y2="224" stroke="#4338ca" stroke-width="2"/>
+<text x="834" y="243" font-size="13" fill="#0f172a"><tspan font-weight="700">Pitch</tspan> = ahead (hi) vs side (lo)</text>
+<text x="800" y="276" font-size="11" fill="#64748b">modes</text>
+<rect x="840" y="265" width="68" height="17" rx="8" fill="#eef2ff" stroke="#c7d2fe"/><text x="874" y="277" text-anchor="middle" font-size="10" fill="#4338ca">continuous</text>
+<rect x="914" y="265" width="42" height="17" rx="8" fill="#eef2ff" stroke="#c7d2fe"/><text x="935" y="277" text-anchor="middle" font-size="10" fill="#4338ca">pulse</text>
+<rect x="962" y="265" width="46" height="17" rx="8" fill="#eef2ff" stroke="#c7d2fe"/><text x="985" y="277" text-anchor="middle" font-size="10" fill="#4338ca">sweep</text>
+<text x="907" y="312" text-anchor="middle" font-size="11" fill="#64748b">distance &#8594; audio cues</text>
+
+<!-- P5 BINAURAL -->
+<rect x="1078" y="92" width="162" height="252" rx="14" fill="#fff" stroke="#e2e8f0"/>
+<path d="M1078,106 Q1078,92 1092,92 L1226,92 Q1240,92 1240,106 L1240,130 L1078,130 Z" fill="#4338ca"/>
+<circle cx="1100" cy="111" r="10" fill="#fff"/><text x="1100" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#4338ca">5</text>
+<text x="1118" y="116" font-size="13" font-weight="600" fill="#fff" letter-spacing="0.4">BINAURAL</text>
+<path d="M1126,212 Q1159,162 1192,212" fill="none" stroke="#4338ca" stroke-width="5" stroke-linecap="round"/>
+<rect x="1118" y="206" width="18" height="34" rx="7" fill="#4338ca"/>
+<rect x="1182" y="206" width="18" height="34" rx="7" fill="#4338ca"/>
+<path d="M1114,216 q-7,8 0,16" fill="none" stroke="#4338ca" stroke-width="1.5" opacity="0.55"/>
+<path d="M1204,216 q7,8 0,16" fill="none" stroke="#4338ca" stroke-width="1.5" opacity="0.55"/>
+<text x="1127" y="258" text-anchor="middle" font-size="11" fill="#64748b">L</text><text x="1191" y="258" text-anchor="middle" font-size="11" fill="#64748b">R</text>
+<text x="1159" y="312" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Spatial audio</text>
+<text x="1159" y="330" text-anchor="middle" font-size="11" fill="#64748b">binaural &#183; headphones</text>
+
+<!-- arrows -->
+<path d="M259,203 l11,9 l-11,9" fill="none" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M507,203 l11,9 l-11,9" fill="none" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M755,203 l11,9 l-11,9" fill="none" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1049,203 l11,9 l-11,9" fill="none" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+<!-- footer -->
+<rect x="40" y="378" width="98" height="26" rx="13" fill="#f1f5f9" stroke="#e2e8f0"/><circle cx="58" cy="391" r="4" fill="#22c55e"/><text x="70" y="395" font-size="12" fill="#334155">on-device</text>
+<rect x="148" y="378" width="92" height="26" rx="13" fill="#f1f5f9" stroke="#e2e8f0"/><circle cx="166" cy="391" r="4" fill="#22c55e"/><text x="178" y="395" font-size="12" fill="#334155">real-time</text>
+<rect x="250" y="378" width="214" height="26" rx="13" fill="#f1f5f9" stroke="#e2e8f0"/><circle cx="268" cy="391" r="4" fill="#22c55e"/><text x="280" y="395" font-size="12" fill="#334155">in-browser &#183; GitHub Pages</text>
+<text x="1240" y="395" text-anchor="end" font-size="12" fill="#64748b">absolute metric depth &#183; distances in meters</text>
+</svg>
