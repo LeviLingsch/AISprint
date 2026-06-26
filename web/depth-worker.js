@@ -47,9 +47,13 @@ function percentile(sorted, p) { const idx = (p / 100) * (sorted.length - 1), lo
 // NOT per-frame normalized so an open scene stays silent). SCALE is anchored to NEAR_REF
 // (the raw value of a ~near_m object): auto-calibrates from the closest thing seen in the
 // first ~12 frames; override with ?nearref=VALUE (read the live "ref" off the status line).
+// ANCHOR_M = assumed real distance (m) of the nearest thing in view at startup. Pseudo-distance
+// is ANCHOR_M * ref / value, so a normal room view (nearest ~1.5 m) puts the silence boundary
+// near far_m (3 m). RAISE ?anchor to tighten the audible range (more silence), lower to widen.
+const ANCHOR_M = parseFloat(SP.get('anchor')) || 1.6;
 let NEAR_REF = parseFloat(SP.get('nearref')) || 0;
 const AUTO_REF = !(NEAR_REF > 0);
-let calibN = 0;
+let calibSum = 0, calibN = 0;
 
 function sectorDistances(data, H, W, near_m, far_m, n = 7, rt = 0.10, rb = 0.80) {
   const top = Math.floor(rt * H), bot = Math.floor(rb * H);
@@ -62,9 +66,9 @@ function sectorDistances(data, H, W, near_m, far_m, n = 7, rt = 0.10, rb = 0.80)
     sv[s] = percentile(vals, 80);                          // nearest obstacle in this sector (higher=nearer)
     if (sv[s] > frameNear) frameNear = sv[s];
   }
-  if (AUTO_REF && calibN < 12) { NEAR_REF = Math.max(NEAR_REF, frameNear); calibN++; }
+  if (AUTO_REF && calibN < 12) { calibSum += frameNear; calibN++; NEAR_REF = calibSum / calibN; } // avg first frames (stable)
   const ref = NEAR_REF || frameNear || 1;
-  const scale = near_m * ref;                              // a near object (value ~ ref) -> ~near_m
+  const scale = ANCHOR_M * ref;                            // nearest startup thing -> ~ANCHOR_M meters
   const out = new Float32Array(n);
   for (let s = 0; s < n; s++) out[s] = scale / Math.max(sv[s], 1e-4); // far -> large -> > far_m -> SILENT
   return { out, ref };
