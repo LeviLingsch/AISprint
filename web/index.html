@@ -17,7 +17,7 @@
   h1{font-size:14px;margin:0 0 2px;font-weight:600}
   #status{font-size:12px;color:var(--muted);margin-top:6px}
   canvas#grid,canvas#depth{width:100%;background:#0d0e12;border:1px solid var(--line);border-radius:10px;display:block;margin-top:8px}
-  canvas#depth{height:120px;image-rendering:auto}
+  canvas#depth{height:140px;width:auto;max-width:100%;margin:8px auto 0;image-rendering:auto}
   canvas#grid{height:84px}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
   input,button{font-size:14px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#15171c;color:var(--text)}
@@ -34,7 +34,7 @@
   <div class="card">
     <h1>Echolocation · AISprint engine on the web</h1>
     <small>Runs entirely in your browser — best on a <b>laptop/desktop in Chrome</b> (it uses your GPU via WebGPU; mobile isn't optimized yet — coming soon). Metric depth → 7 sectors → spatial audio. Paste your Anthropic API key below, then <b>double-tap</b> for Claude to describe the scene (single-tap to ask, long-press or say "stop"). Wear headphones.</small>
-    <canvas id="depth" width="320" height="120"></canvas>
+    <canvas id="depth" width="160" height="120"></canvas>
     <canvas id="grid" width="700" height="84"></canvas>
     <div id="status">Use a computer (Chrome). Paste your Claude API key, tap Start, allow camera + mic, wear headphones.</div>
   </div>
@@ -64,6 +64,6 @@
     </div>
   </div>
 </div>
-<script type="module" src="./nav.js?v=4"></script>
+<script type="module" src="./nav.js?v=5"></script>
 </body>
 </html>

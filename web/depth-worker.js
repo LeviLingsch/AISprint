@@ -41,25 +41,42 @@ function setSize(est, size) {
 
 function percentile(sorted, p) { const idx = (p / 100) * (sorted.length - 1), lo = Math.floor(idx), hi = Math.ceil(idx); return lo === hi ? sorted[lo] : sorted[lo] * (hi - idx) + sorted[hi] * (idx - lo); }
 
-// relative DA output: HIGHER = NEARER. Per-frame normalize -> closeness -> pseudo-distance.
+// relative DA output: HIGHER = NEARER (inverse-depth), no real meters and a scale that
+// varies by scene. Convert to a pseudo-distance d = SCALE / value so genuinely-far regions
+// map BEYOND far_m and the synth SILENCES them (restores "quiet unless something is close",
+// NOT per-frame normalized so an open scene stays silent). SCALE is anchored to NEAR_REF
+// (the raw value of a ~near_m object): auto-calibrates from the closest thing seen in the
+// first ~12 frames; override with ?nearref=VALUE (read the live "ref" off the status line).
+let NEAR_REF = parseFloat(SP.get('nearref')) || 0;
+const AUTO_REF = !(NEAR_REF > 0);
+let calibN = 0;
+
 function sectorDistances(data, H, W, near_m, far_m, n = 7, rt = 0.10, rb = 0.80) {
   const top = Math.floor(rt * H), bot = Math.floor(rb * H);
-  let mn = Infinity, mx = -Infinity;
-  for (let y = top; y < bot; y++) { const row = y * W; for (let x = 0; x < W; x++) { const v = data[row + x]; if (v < mn) mn = v; if (v > mx) mx = v; } }
-  const inv = 1 / (mx - mn + 1e-6), out = new Float32Array(n);
+  const sv = new Float32Array(n);
+  let frameNear = 0;
   for (let s = 0; s < n; s++) {
     const x0 = Math.floor(s * W / n), x1 = Math.floor((s + 1) * W / n), vals = [];
     for (let y = top; y < bot; y++) { const row = y * W; for (let x = x0; x < x1; x++) vals.push(data[row + x]); }
     vals.sort((a, b) => a - b);
-    const nearVal = percentile(vals, 80);                 // higher = nearer -> nearest obstacle
-    const c = Math.max(0, Math.min(1, (nearVal - mn) * inv)); // closeness 0..1 (1 = nearest)
-    out[s] = far_m - c * (far_m - near_m);                 // pseudo-distance, smaller = nearer (synth-compatible)
+    sv[s] = percentile(vals, 80);                          // nearest obstacle in this sector (higher=nearer)
+    if (sv[s] > frameNear) frameNear = sv[s];
   }
-  return out;
+  if (AUTO_REF && calibN < 12) { NEAR_REF = Math.max(NEAR_REF, frameNear); calibN++; }
+  const ref = NEAR_REF || frameNear || 1;
+  const scale = near_m * ref;                              // a near object (value ~ ref) -> ~near_m
+  const out = new Float32Array(n);
+  for (let s = 0; s < n; s++) out[s] = scale / Math.max(sv[s], 1e-4); // far -> large -> > far_m -> SILENT
+  return { out, ref };
 }
 
 function turbo(t) { const r = Math.round(255 * Math.min(Math.max(1.5 - Math.abs(4 * t - 3), 0), 1)); const g = Math.round(255 * Math.min(Math.max(1.5 - Math.abs(4 * t - 2), 0), 1)); const b = Math.round(255 * Math.min(Math.max(1.5 - Math.abs(4 * t - 1), 0), 1)); return [r, g, b]; }
-function depthThumb(data, H, W, DW = 96, DH = 72) {
+function depthThumb(data, H, W, camW, camH) {
+  // thumbnail at the CAMERA's aspect ratio so the preview matches what the camera sees
+  // (not stretched flat). Sample the full depth map onto that grid.
+  const aw = camW || W, ah = camH || H, LONG = 144;
+  const DW = aw >= ah ? LONG : Math.max(1, Math.round(LONG * aw / ah));
+  const DH = aw >= ah ? Math.max(1, Math.round(LONG * ah / aw)) : LONG;
   let mn = Infinity, mx = -Infinity; for (let i = 0; i < data.length; i += 7) { const v = data[i]; if (v < mn) mn = v; if (v > mx) mx = v; }
   const inv = 1 / (mx - mn + 1e-6), rgba = new Uint8ClampedArray(DW * DH * 4);
   for (let y = 0; y < DH; y++) { const sy = Math.floor(y * H / DH); for (let x = 0; x < DW; x++) { const sx = Math.floor(x * W / DW);
@@ -80,9 +97,9 @@ self.onmessage = async (e) => {
       const W = dims.length === 3 ? dims[2] : dims[1];
       const near = (typeof m.near === 'number') ? m.near : 0.5;   // guard: don't NaN if nav.js is stale
       const far = (typeof m.far === 'number') ? m.far : 3.0;
-      const dist = sectorDistances(pd.data, H, W, near, far);
-      const th = depthThumb(pd.data, H, W);
-      self.postMessage({ type: 'dist', dist: Array.from(dist), depth: th.rgba.buffer, dw: th.DW, dh: th.DH, backend: be, res: `${W}x${H}` }, [th.rgba.buffer]);
+      const sd = sectorDistances(pd.data, H, W, near, far);
+      const th = depthThumb(pd.data, H, W, m.width, m.height);
+      self.postMessage({ type: 'dist', dist: Array.from(sd.out), ref: sd.ref, depth: th.rgba.buffer, dw: th.DW, dh: th.DH, backend: be, res: `${W}x${H}` }, [th.rgba.buffer]);
     }
   } catch (err) {
     self.postMessage({ type: 'error', message: String((err && err.message) || err) });
