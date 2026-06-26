@@ -2,7 +2,7 @@
 // -> 7 sector distances -> AudioWorklet synth (same cue mapping). Double-tap adds
 // the Claude scene-discussion layer (claude-discuss.js).
 
-import { createDiscussion } from './claude-discuss.js?v=6';
+import { createDiscussion } from './claude-discuss.js?v=7';
 
 const CAP_W = 322;                 // px fed to the depth model (matches desktop size)
 const N = 7;
@@ -56,7 +56,7 @@ function setupZoom() {
 
 async function startAudio() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
-  await ctx.audioWorklet.addModule('./synth-worklet.js?v=6');
+  await ctx.audioWorklet.addModule('./synth-worklet.js?v=7');
   node = new AudioWorkletNode(ctx, 'echo-synth', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
   node.connect(ctx.destination);
   node.port.postMessage({ params: PARAMS });
@@ -76,7 +76,7 @@ function startWorker() {
   const sizeP = sp.get('size'); if (sizeP && /^\d+$/.test(sizeP)) q.set('size', sizeP);
   const be = sp.get('backend') || 'webgpu';   // FORCE WebGPU everywhere (override with ?backend=wasm)
   if (be === 'wasm' || be === 'webgpu') q.set('backend', be);
-  q.set('v', '6');
+  q.set('v', '7');
   const qs = q.toString() ? '?' + q.toString() : '';
   worker = new Worker('./depth-worker.js' + qs, { type: 'module' });
   worker.onmessage = (e) => {
@@ -92,7 +92,7 @@ function startWorker() {
       busy = false;
       const now = performance.now(); if (lastT) fps = 0.85 * fps + 0.15 * (1000 / Math.max(1, now - lastT)); lastT = now;
       const open = dists.map((d, i) => [d, i]).reduce((a, b) => (b[0] > a[0] ? b : a))[1];
-      setStatus(`${backend.toUpperCase()} · ${fps.toFixed(1)} fps · ${m.res || ''} · ${PARAMS.mode} · open ${open + 1}/7 · ref ${(m.ref || 0).toFixed(1)}`);
+      setStatus(`${backend.toUpperCase()} · ${fps.toFixed(1)} fps · ${m.res || ''} · ${PARAMS.mode} · open ${open + 1}/7 · far ${PARAMS.far_m.toFixed(1)}m`);
       if (running) requestAnimationFrame(loop);
     }
   };
